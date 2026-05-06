@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"https://www.why3.org/why3session.dtd">
+<why3session shape_version="6">
+<prover id="0" name="Alt-Ergo" version="2.4.3" timelimit="1" steplimit="0" memlimit="1000"/>
+<file format="whyml" proved="true">
+<path name=".."/><path name="filter_abstract.mlw"/>
+<theory name="Filter_Abstract" proved="true">
+ <goal name="last_level_valid" proved="true">
+ <proof prover="0"><result status="valid" time="0.013705" steps="4"/></proof>
+ </goal>
+ <goal name="count_passed_level&#39;vc" expl="VC for count_passed_level" proved="true">
+ <proof prover="0"><result status="valid" time="0.042733" steps="175"/></proof>
+ </goal>
+ <goal name="count_passed_level_pair&#39;vc" expl="VC for count_passed_level_pair" proved="true">
+ <proof prover="0"><result status="valid" time="0.080821" steps="368"/></proof>
+ </goal>
+ <goal name="initWorld&#39;vc" expl="VC for initWorld" proved="true">
+ <proof prover="0"><result status="valid" time="0.018944" steps="8"/></proof>
+ </goal>
+ <goal name="step_Zero&#39;vc" expl="VC for step_Zero" proved="true">
+ <proof prover="0"><result status="valid" time="0.017936" steps="4"/></proof>
+ </goal>
+ <goal name="step_Three_Next&#39;vc" expl="VC for step_Three_Next" proved="true">
+ <proof prover="0"><result status="valid" time="0.015468" steps="4"/></proof>
+ </goal>
+ <goal name="step_Three_CS&#39;vc" expl="VC for step_Three_CS" proved="true">
+ <proof prover="0"><result status="valid" time="0.015177" steps="4"/></proof>
+ </goal>
+ <goal name="step_Four&#39;vc" expl="VC for step_Four" proved="true">
+ <proof prover="0"><result status="valid" time="0.019982" steps="4"/></proof>
+ </goal>
+ <goal name="step_Five&#39;vc" expl="VC for step_Five" proved="true">
+ <proof prover="0"><result status="valid" time="0.017800" steps="4"/></proof>
+ </goal>
+ <goal name="Inductiveness.initWorld&#39;refn&#39;vc" expl="VC for initWorld&#39;refn" proved="true">
+ <proof prover="0"><result status="valid" time="0.017614" steps="4"/></proof>
+ </goal>
+ <goal name="Inductiveness.step&#39;refn&#39;vc" expl="VC for step&#39;refn" proved="true">
+ <proof prover="0"><result status="valid" time="0.038924" steps="110"/></proof>
+ </goal>
+ <goal name="two_cs_impossible&#39;vc" expl="VC for two_cs_impossible" proved="true">
+ <proof prover="0"><result status="valid" time="0.056911" steps="198"/></proof>
+ </goal>
+ <goal name="inv_implies_atMostOneCS&#39;vc" expl="VC for inv_implies_atMostOneCS" proved="true">
+ <proof prover="0"><result status="valid" time="0.030504" steps="59"/></proof>
+ </goal>
+ <goal name="correctness" proved="true">
+ <proof prover="0"><result status="valid" time="0.022012" steps="8"/></proof>
+ </goal>
+ <goal name="initWorldC&#39;vc" expl="VC for initWorldC" proved="true">
+ <proof prover="0"><result status="valid" time="0.036391" steps="76"/></proof>
+ </goal>
+ <goal name="stepC&#39;vc" expl="VC for stepC" proved="true">
+ <proof prover="0"><result status="valid" time="0.063728" steps="314"/></proof>
+ </goal>
+ <goal name="Refinement.initWorldA&#39;refn&#39;vc" expl="VC for initWorldA&#39;refn" proved="true">
+ <proof prover="0"><result status="valid" time="0.020974" steps="4"/></proof>
+ </goal>
+ <goal name="Refinement.initWorldC&#39;refn&#39;vc" expl="VC for initWorldC&#39;refn" proved="true">
+ <proof prover="0"><result status="valid" time="0.022596" steps="4"/></proof>
+ </goal>
+ <goal name="Refinement.stepA&#39;refn&#39;vc" expl="VC for stepA&#39;refn" proved="true">
+ <proof prover="0"><result status="valid" time="0.033893" steps="104"/></proof>
+ </goal>
+ <goal name="Refinement.stepC&#39;refn&#39;vc" expl="VC for stepC&#39;refn" proved="true">
+ <proof prover="0"><result status="valid" time="0.019818" steps="4"/></proof>
+ </goal>
+ <goal name="correctness_by_refinement" proved="true">
+ <proof prover="0"><result status="valid" time="0.023949" steps="8"/></proof>
+ </goal>
+</theory>
+</file>
+</why3session>

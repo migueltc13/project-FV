@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"https://www.why3.org/why3session.dtd">
+<why3session shape_version="6">
+<prover id="0" name="Alt-Ergo" version="2.4.3" timelimit="1" steplimit="0" memlimit="1000"/>
+<file format="whyml" proved="true">
+<path name=".."/><path name="N_processes.mlw"/>
+<theory name="Peterson_N_Monolithic" proved="true">
+ <goal name="last_level_valid" proved="true">
+ <proof prover="0"><result status="valid" time="0.041073" steps="4"/></proof>
+ </goal>
+ <goal name="count_passed_level&#39;vc" expl="VC for count_passed_level" proved="true">
+ <proof prover="0"><result status="valid" time="0.093941" steps="168"/></proof>
+ </goal>
+ <goal name="count_passed_level_pair&#39;vc" expl="VC for count_passed_level_pair" proved="true">
+ <proof prover="0"><result status="valid" time="0.097916" steps="362"/></proof>
+ </goal>
+ <goal name="initWorld&#39;vc" expl="VC for initWorld" proved="true">
+ <proof prover="0"><result status="valid" time="0.018058" steps="8"/></proof>
+ </goal>
+ <goal name="step_Zero&#39;vc" expl="VC for step_Zero" proved="true">
+ <proof prover="0"><result status="valid" time="0.013571" steps="4"/></proof>
+ </goal>
+ <goal name="step_Three_Next&#39;vc" expl="VC for step_Three_Next" proved="true">
+ <proof prover="0"><result status="valid" time="0.010782" steps="4"/></proof>
+ </goal>
+ <goal name="step_Three_CS&#39;vc" expl="VC for step_Three_CS" proved="true">
+ <proof prover="0"><result status="valid" time="0.013613" steps="4"/></proof>
+ </goal>
+ <goal name="step_Four&#39;vc" expl="VC for step_Four" proved="true">
+ <proof prover="0"><result status="valid" time="0.008846" steps="4"/></proof>
+ </goal>
+ <goal name="step_Five&#39;vc" expl="VC for step_Five" proved="true">
+ <proof prover="0"><result status="valid" time="0.013407" steps="4"/></proof>
+ </goal>
+ <goal name="Inductiveness.initWorld&#39;refn&#39;vc" expl="VC for initWorld&#39;refn" proved="true">
+ <proof prover="0"><result status="valid" time="0.011337" steps="4"/></proof>
+ </goal>
+ <goal name="Inductiveness.step&#39;refn&#39;vc" expl="VC for step&#39;refn" proved="true">
+ <proof prover="0"><result status="valid" time="0.032971" steps="110"/></proof>
+ </goal>
+ <goal name="two_cs_impossible&#39;vc" expl="VC for two_cs_impossible" proved="true">
+ <proof prover="0"><result status="valid" time="0.055682" steps="194"/></proof>
+ </goal>
+ <goal name="inv_implies_atMostOneCS&#39;vc" expl="VC for inv_implies_atMostOneCS" proved="true">
+ <proof prover="0"><result status="valid" time="0.023995" steps="59"/></proof>
+ </goal>
+ <goal name="correctness" proved="true">
+ <proof prover="0"><result status="valid" time="0.016623" steps="8"/></proof>
+ </goal>
+</theory>
+</file>
+</why3session>

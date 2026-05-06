@@ -1,0 +1,206 @@
+(* vim: set tabstop=2 shiftwidth=2 softtabstop=2 expandtab: *)
+module Filter_Concrete_Split
+
+  use export int.Int
+  use export map.Map
+  use export map.Const
+
+  use filter_abstract.Filter_Abstract
+  use mutual_exclusion_spec.Mutual_Exclusion_Spec
+
+  type state = IdleC | SetLevel | SetVictim | TryingC | CSC | ExitC
+
+  type process = int
+  type level = int
+
+  constant n_processes : int = Filter_Abstract.n_processes
+
+  predicate valid_process (p:process) =
+    0 <= p < n_processes
+
+  predicate valid_level (l:level) =
+    1 <= l < n_processes
+
+  type world = {
+    pc     : map process state;
+    lvl    : map process level;
+    victim : map level process;
+  }
+
+  predicate waiting_guard (w:world) (p:process) =
+    forall q:process.
+      valid_process q ->
+      q <> p ->
+      w.lvl[q] < w.lvl[p] \/ w.victim[w.lvl[p]] <> p
+
+  predicate initWorld_p (w:world) =
+       w.pc = const IdleC
+    /\ w.lvl = const 0
+
+  (**************************************************************************)
+  (* Concrete split-step actions                                             *)
+  (**************************************************************************)
+
+  predicate step_Idle_SetLevel_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = IdleC
+
+  let ghost function step_Idle_SetLevel (w:world) (p:process) : world
+    requires { step_Idle_SetLevel_enbld w p }
+  =
+    {
+      pc     = set w.pc p SetLevel;
+      lvl    = set w.lvl p 1;
+      victim = w.victim;
+    }
+
+  predicate step_SetLevel_SetVictim_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = SetLevel
+    /\ valid_level w.lvl[p]
+
+  let ghost function step_SetLevel_SetVictim (w:world) (p:process) : world
+    requires { step_SetLevel_SetVictim_enbld w p }
+  =
+    {
+      pc     = set w.pc p SetVictim;
+      lvl    = w.lvl;
+      victim = w.victim;
+    }
+
+  predicate step_SetVictim_Trying_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = SetVictim
+    /\ valid_level w.lvl[p]
+
+  let ghost function step_SetVictim_Trying (w:world) (p:process) : world
+    requires { step_SetVictim_Trying_enbld w p }
+  =
+    {
+      pc     = set w.pc p TryingC;
+      lvl    = w.lvl;
+      victim = set w.victim w.lvl[p] p;
+    }
+
+  predicate step_Trying_Next_SetLevel_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = TryingC
+    /\ valid_level w.lvl[p]
+    /\ w.lvl[p] < n_processes - 1
+    /\ waiting_guard w p
+
+  let ghost function step_Trying_Next_SetLevel (w:world) (p:process) : world
+    requires { step_Trying_Next_SetLevel_enbld w p }
+  =
+    {
+      pc     = set w.pc p SetLevel;
+      lvl    = set w.lvl p (w.lvl[p] + 1);
+      victim = w.victim;
+    }
+
+  predicate step_Trying_CS_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = TryingC
+    /\ w.lvl[p] = n_processes - 1
+    /\ waiting_guard w p
+
+  let ghost function step_Trying_CS (w:world) (p:process) : world
+    requires { step_Trying_CS_enbld w p }
+  =
+    {
+      pc     = set w.pc p CSC;
+      lvl    = w.lvl;
+      victim = w.victim;
+    }
+
+  predicate step_CS_Exit_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = CSC
+
+  let ghost function step_CS_Exit (w:world) (p:process) : world
+    requires { step_CS_Exit_enbld w p }
+  =
+    {
+      pc     = set w.pc p ExitC;
+      lvl    = w.lvl;
+      victim = w.victim;
+    }
+
+  predicate step_Exit_Idle_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = ExitC
+
+  let ghost function step_Exit_Idle (w:world) (p:process) : world
+    requires { step_Exit_Idle_enbld w p }
+  =
+    {
+      pc     = set w.pc p IdleC;
+      lvl    = set w.lvl p 0;
+      victim = w.victim;
+    }
+
+  inductive stepind world world =
+  | step_Idle_SetLevel:
+      forall w:world, p:process.
+        step_Idle_SetLevel_enbld w p ->
+        stepind w (step_Idle_SetLevel w p)
+
+  | step_SetLevel_SetVictim:
+      forall w:world, p:process.
+        step_SetLevel_SetVictim_enbld w p ->
+        stepind w (step_SetLevel_SetVictim w p)
+
+  | step_SetVictim_Trying:
+      forall w:world, p:process.
+        step_SetVictim_Trying_enbld w p ->
+        stepind w (step_SetVictim_Trying w p)
+
+  | step_Trying_Next_SetLevel:
+      forall w:world, p:process.
+        step_Trying_Next_SetLevel_enbld w p ->
+        stepind w (step_Trying_Next_SetLevel w p)
+
+  | step_Trying_CS:
+      forall w:world, p:process.
+        step_Trying_CS_enbld w p ->
+        stepind w (step_Trying_CS w p)
+
+  | step_CS_Exit:
+      forall w:world, p:process.
+        step_CS_Exit_enbld w p ->
+        stepind w (step_CS_Exit w p)
+
+  | step_Exit_Idle:
+      forall w:world, p:process.
+        step_Exit_Idle_enbld w p ->
+        stepind w (step_Exit_Idle w p)
+
+  let ghost predicate step (w1:world) (w2:world) : bool =
+    stepind w1 w2
+
+  (**************************************************************************)
+  (* Refinement target                                                      *)
+  (*
+     This file is the next target.
+
+     Intended refinement:
+
+       Filter_Concrete_Split refines Filter_Abstract
+
+     The refinement map should hide the intermediate doorway states:
+
+       IdleC      -> Idle
+       SetLevel   -> Idle or Trying, depending on the chosen abstraction
+       SetVictim  -> Idle or Trying, depending on the chosen abstraction
+       TryingC    -> Trying
+       CSC        -> CS
+       ExitC      -> Exit
+
+     The difficult part is choosing how to map SetLevel and SetVictim while
+     preserving lvl/victim consistently.
+
+     This requires a transformed lvl map, not just identity on lvl.
+  *)
+  (**************************************************************************)
+
+end

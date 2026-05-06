@@ -1,0 +1,130 @@
+(* vim: set tabstop=2 shiftwidth=2 softtabstop=2 expandtab: *)
+module Mutual_Exclusion_Spec
+
+  use export int.Int
+  use export map.Map
+  use export map.Const
+
+  type state = Idle | Trying | CS | Exit
+
+  type process = int
+
+  val constant n_processes : int
+  axiom n_processes_min : n_processes >= 2
+
+  predicate valid_process (p:process) =
+    0 <= p < n_processes
+
+  type world = {
+    pc : map process state;
+  }
+
+  predicate atMostOneCS (w:world) =
+    forall p q:process.
+      valid_process p ->
+      valid_process q ->
+      w.pc[p] = CS ->
+      w.pc[q] = CS ->
+      p = q
+
+  predicate noOneCS (w:world) =
+    forall q:process.
+      valid_process q ->
+      w.pc[q] <> CS
+
+  predicate inv (w:world) =
+    atMostOneCS w
+
+  predicate initWorld_p (w:world) =
+       w.pc = const Idle
+    /\ inv w
+
+  let ghost predicate initWorld (w:world) : bool
+    ensures { result -> inv w }
+  =
+    initWorld_p w
+
+  predicate step_Idle_Trying_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = Idle
+
+  let ghost function step_Idle_Trying (w:world) (p:process) : world
+    requires { step_Idle_Trying_enbld w p }
+    ensures  { inv w -> inv result }
+  =
+    {
+      pc = set w.pc p Trying;
+    }
+
+  predicate step_Trying_CS_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = Trying
+    /\ noOneCS w
+
+  let ghost function step_Trying_CS (w:world) (p:process) : world
+    requires { step_Trying_CS_enbld w p }
+    ensures  { inv w -> inv result }
+  =
+    {
+      pc = set w.pc p CS;
+    }
+
+  predicate step_CS_Exit_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = CS
+
+  let ghost function step_CS_Exit (w:world) (p:process) : world
+    requires { step_CS_Exit_enbld w p }
+    ensures  { inv w -> inv result }
+  =
+    {
+      pc = set w.pc p Exit;
+    }
+
+  predicate step_Exit_Idle_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = Exit
+
+  let ghost function step_Exit_Idle (w:world) (p:process) : world
+    requires { step_Exit_Idle_enbld w p }
+    ensures  { inv w -> inv result }
+  =
+    {
+      pc = set w.pc p Idle;
+    }
+
+  inductive stepind world world =
+  | step_Idle_Trying:
+      forall w:world, p:process.
+        step_Idle_Trying_enbld w p ->
+        stepind w (step_Idle_Trying w p)
+
+  | step_Trying_CS:
+      forall w:world, p:process.
+        step_Trying_CS_enbld w p ->
+        stepind w (step_Trying_CS w p)
+
+  | step_CS_Exit:
+      forall w:world, p:process.
+        step_CS_Exit_enbld w p ->
+        stepind w (step_CS_Exit w p)
+
+  | step_Exit_Idle:
+      forall w:world, p:process.
+        step_Exit_Idle_enbld w p ->
+        stepind w (step_Exit_Idle w p)
+
+  let ghost predicate step (w1:world) (w2:world) : bool =
+    stepind w1 w2
+
+  clone inductiveness.Inductiveness with
+    type world,
+    predicate inv,
+    val step,
+    val initWorld
+
+  goal correctness:
+    forall w:world.
+      reachable w -> atMostOneCS w
+
+end

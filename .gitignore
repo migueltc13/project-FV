@@ -1,0 +1,5 @@
+# Ignore all backup files
+**/*.bak
+# Ignore Why3 session related files
+# **/*.xml
+# **/*.gz

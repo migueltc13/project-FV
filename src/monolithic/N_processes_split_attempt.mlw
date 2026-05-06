@@ -1,0 +1,398 @@
+(* vim: set tabstop=2 shiftwidth=2 softtabstop=2 expandtab: *)
+module Peterson_N_Monolithic
+
+  use export int.Int
+  use export map.Map
+  use export map.Const
+
+  type state = Zero | One | Two | Three | Four | Five
+
+  type process = int
+  type level = int
+
+  val constant n_processes : int
+  axiom n_processes_min : n_processes >= 2
+  (* axiom n_processes_exact : n_processes = 2 *)
+
+  predicate valid_process (p:process) =
+    0 <= p < n_processes
+
+  predicate valid_level (l:level) =
+    1 <= l < n_processes
+
+  lemma valid_process_lt:
+    forall p:process. valid_process p -> p < n_processes
+
+  type world = {
+    pc     : map process state;
+    lvl    : map process level;
+    victim : map level process;
+  }
+
+  predicate initWorld_p (w:world) =
+       w.pc = const Zero
+    /\ w.lvl = const 0
+
+  predicate at_last_level (w:world) (p:process) =
+    valid_process p /\
+    w.lvl[p] = n_processes - 1
+
+  predicate passed_last_level (w:world) (p:process) =
+    valid_process p /\
+    w.lvl[p] = n_processes - 1 /\
+    (w.pc[p] = Four \/ w.pc[p] = Five)
+
+  let rec ghost function count_passed_last (w:world) (n:int) : int
+    requires { 0 <= n <= n_processes }
+    ensures  { 0 <= result <= n }
+    ensures  {
+      forall p:process.
+        0 <= p < n ->
+        passed_last_level w p ->
+        result >= 1
+    }
+    variant  { n }
+  =
+    if n = 0 then 0
+    else
+      let c =
+        if passed_last_level w (n - 1) then 1 else 0
+      in
+      c + count_passed_last w (n - 1)
+
+  let rec lemma count_passed_last_pair
+      (w:world) (p q:process) (n:int)
+    requires { 0 <= n <= n_processes }
+    requires { 0 <= p < n }
+    requires { 0 <= q < n }
+    requires { passed_last_level w p }
+    requires { passed_last_level w q }
+    requires { count_passed_last w n <= 1 }
+    ensures  { p = q }
+    variant  { n }
+  =
+    if n = 0 then absurd
+    else if p = n - 1 then
+      if q = n - 1 then
+        ()
+      else begin
+        assert { 0 <= q < n - 1 };
+        assert { passed_last_level w (n - 1) };
+        assert { count_passed_last w n =
+                 1 + count_passed_last w (n - 1) };
+        assert { count_passed_last w (n - 1) >= 1 };
+        absurd
+      end
+    else if q = n - 1 then begin
+      assert { 0 <= p < n - 1 };
+      assert { passed_last_level w (n - 1) };
+      assert { count_passed_last w n =
+               1 + count_passed_last w (n - 1) };
+      assert { count_passed_last w (n - 1) >= 1 };
+      absurd
+    end
+    else begin
+      assert { 0 <= p < n - 1 };
+      assert { 0 <= q < n - 1 };
+      count_passed_last_pair w p q (n - 1)
+    end
+
+  predicate passed_level (w:world) (p:process) (l:level) =
+    valid_process p /\
+    valid_level l /\
+    (
+      w.lvl[p] > l \/
+      (l = n_processes - 1 /\
+       w.lvl[p] = l /\
+       (w.pc[p] = Four \/ w.pc[p] = Five))
+    )
+
+  let rec ghost function count_passed_level
+      (w:world) (l:level) (n:int) : int
+    requires { valid_level l }
+    requires { 0 <= n <= n_processes }
+    ensures  { 0 <= result <= n }
+    variant  { n }
+  =
+    if n = 0 then 0
+    else
+      let c =
+        if passed_level w (n - 1) l then 1 else 0
+      in
+      c + count_passed_level w l (n - 1)
+
+  predicate filter_bound (w:world) =
+    forall l:level.
+      valid_level l ->
+      count_passed_level w l n_processes <= n_processes - l
+
+  predicate atMostOnePassedLast (w:world) =
+    count_passed_last w n_processes <= 1
+
+  (*
+  lemma filter_bound_last:
+    forall w:world.
+      filter_bound w -> atMostOnePassedLast w
+  *)
+
+  predicate atMostOneCS (w:world) =
+    forall p q:process.
+      valid_process p ->
+      valid_process q ->
+      w.pc[p] = Four ->
+      w.pc[q] = Four ->
+      p = q
+
+  predicate active (w:world) (p:process) =
+    w.pc[p] = One \/
+    w.pc[p] = Two \/
+    w.pc[p] = Three \/
+    w.pc[p] = Four \/
+    w.pc[p] = Five
+
+  predicate waiting_guard (w:world) (p:process) =
+    forall q:process.
+      valid_process q ->
+      q <> p ->
+      w.lvl[q] < w.lvl[p] \/ w.victim[w.lvl[p]] <> p
+
+  predicate local_inv (w:world) =
+       (forall p:process.
+          valid_process p ->
+          not active w p ->
+          w.lvl[p] = 0)
+
+    /\ (forall p:process.
+          valid_process p ->
+          active w p ->
+          1 <= w.lvl[p] < n_processes)
+
+    /\ (forall p:process.
+          valid_process p ->
+          w.pc[p] = Four ->
+          w.lvl[p] = n_processes - 1)
+
+    /\ (forall p:process.
+          valid_process p ->
+          w.pc[p] = Five ->
+          w.lvl[p] = n_processes - 1)
+
+  predicate safety_inv (w:world) =
+       local_inv w
+    /\ filter_bound w
+    /\ atMostOnePassedLast w
+
+  let ghost predicate initWorld (w:world) : bool
+    ensures { result -> local_inv w }
+  =
+    initWorld_p w
+
+  predicate step_Zero_enbld (w:world) (p:process) =
+    valid_process p /\ w.pc[p] = Zero
+
+  let ghost function step_Zero (w:world) (p:process) : world
+    requires { step_Zero_enbld w p }
+    ensures  { local_inv w -> local_inv result }
+  =
+    {
+      pc     = set w.pc p One;
+      lvl    = set w.lvl p 1;
+      victim = w.victim;
+    }
+
+  predicate step_One_enbld (w:world) (p:process) =
+    valid_process p /\
+    w.pc[p] = One /\
+    valid_level w.lvl[p]
+
+  let ghost function step_One (w:world) (p:process) : world
+    requires { step_One_enbld w p }
+    ensures  { local_inv w -> local_inv result }
+  =
+    {
+      pc     = set w.pc p Two;
+      lvl    = w.lvl;
+      victim = w.victim;
+    }
+
+  predicate step_Two_enbld (w:world) (p:process) =
+    valid_process p /\
+    w.pc[p] = Two /\
+    valid_level w.lvl[p]
+
+  let ghost function step_Two (w:world) (p:process) : world
+    requires { step_Two_enbld w p }
+    ensures  { result.pc[p] = Three }
+    ensures  { result.lvl[p] = w.lvl[p] }
+    ensures  { result.victim[result.lvl[p]] = p }
+    ensures  { local_inv w -> local_inv result }
+  =
+    {
+      pc     = set w.pc p Three;
+      lvl    = w.lvl;
+      victim = set w.victim w.lvl[p] p;
+    }
+
+  predicate step_Three_Next_enbld (w:world) (p:process) =
+    valid_process p /\
+    w.pc[p] = Three /\
+    valid_level w.lvl[p] /\
+    w.lvl[p] < n_processes - 1 /\
+    waiting_guard w p
+
+  let ghost function step_Three_Next (w:world) (p:process) : world
+    requires { step_Three_Next_enbld w p }
+    ensures  { local_inv w -> local_inv result }
+  =
+    {
+      pc     = set w.pc p One;
+      lvl    = set w.lvl p (w.lvl[p] + 1);
+      victim = w.victim;
+    }
+
+  predicate step_Three_CS_enbld (w:world) (p:process) =
+    valid_process p /\
+    w.pc[p] = Three /\
+    w.lvl[p] = n_processes - 1 /\
+    waiting_guard w p
+
+  let ghost function step_Three_CS (w:world) (p:process) : world
+    requires { step_Three_CS_enbld w p }
+    ensures  { result.pc[p] = Four }
+    ensures  { result.lvl[p] = n_processes - 1 }
+    ensures  {
+      forall q:process.
+        valid_process q ->
+        q <> p ->
+        passed_last_level result q ->
+        passed_last_level w q
+    }
+    ensures  { local_inv w -> local_inv result }
+  =
+    {
+      pc     = set w.pc p Four;
+      lvl    = w.lvl;
+      victim = w.victim;
+    }
+
+  predicate step_Four_enbld (w:world) (p:process) =
+    valid_process p /\ w.pc[p] = Four
+
+  let ghost function step_Four (w:world) (p:process) : world
+    requires { step_Four_enbld w p }
+    ensures  { local_inv w -> local_inv result }
+  =
+    {
+      pc     = set w.pc p Five;
+      lvl    = w.lvl;
+      victim = w.victim;
+    }
+
+  predicate step_Five_enbld (w:world) (p:process) =
+    valid_process p /\ w.pc[p] = Five
+
+  let ghost function step_Five (w:world) (p:process) : world
+    requires { step_Five_enbld w p }
+    ensures  { local_inv w -> local_inv result }
+  =
+    {
+      pc     = set w.pc p Zero;
+      lvl    = set w.lvl p 0;
+      victim = w.victim;
+    }
+
+  inductive stepind world world =
+  | step_Zero:
+      forall w:world, p:process.
+        step_Zero_enbld w p ->
+        stepind w (step_Zero w p)
+
+  | step_One:
+      forall w:world, p:process.
+        step_One_enbld w p ->
+        stepind w (step_One w p)
+
+  | step_Two:
+      forall w:world, p:process.
+        step_Two_enbld w p ->
+        stepind w (step_Two w p)
+
+  | step_Three_Next:
+      forall w:world, p:process.
+        step_Three_Next_enbld w p ->
+        stepind w (step_Three_Next w p)
+
+  | step_Three_CS:
+      forall w:world, p:process.
+        step_Three_CS_enbld w p ->
+        stepind w (step_Three_CS w p)
+
+  | step_Four:
+      forall w:world, p:process.
+        step_Four_enbld w p ->
+        stepind w (step_Four w p)
+
+  | step_Five:
+      forall w:world, p:process.
+        step_Five_enbld w p ->
+        stepind w (step_Five w p)
+
+  let ghost predicate step (w1:world) (w2:world) : bool =
+    stepind w1 w2
+
+  clone inductiveness.Inductiveness with
+    type world,
+    predicate inv = local_inv,
+    val step,
+    val initWorld
+
+  let lemma safety_inv_implies_atMostOneCS (w:world)
+    requires { safety_inv w }
+    ensures  { atMostOneCS w }
+  =
+    assert {
+      forall p q:process.
+        valid_process p ->
+        valid_process q ->
+        w.pc[p] = Four ->
+        w.pc[q] = Four ->
+        passed_last_level w p /\ passed_last_level w q
+    };
+    assert {
+      forall p q:process.
+        valid_process p ->
+        valid_process q ->
+        w.pc[p] = Four ->
+        w.pc[q] = Four ->
+        p = q
+    };
+    ()
+
+  goal correctness:
+    forall w:world.
+      reachable w -> atMostOneCS w
+
+  goal correctness_from_safety_inv:
+    forall w:world.
+      safety_inv w -> atMostOneCS w
+
+  (*
+    Remaining proof obligation for full arbitrary-N correctness:
+
+    goal remaining_filter_bound_inductive:
+      forall w1 w2:world.
+        safety_inv w1 ->
+        step w1 w2 ->
+        safety_inv w2
+
+    If this goal is proved, then we can clone Inductiveness with
+    inv = safety_inv and obtain:
+
+      reachable w -> safety_inv w
+
+    Combining this with correctness_from_safety_inv gives:
+
+      reachable w -> atMostOneCS w
+  *)
+
+end

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"https://www.why3.org/why3session.dtd">
+<why3session shape_version="6">
+<prover id="0" name="Z3" version="4.15.2" timelimit="1" steplimit="0" memlimit="1000"/>
+<prover id="1" name="Alt-Ergo" version="2.4.3" timelimit="1" steplimit="0" memlimit="1000"/>
+<file format="whyml">
+<path name=".."/><path name="N_processes_split_attempt.mlw"/>
+<theory name="Peterson_N_Monolithic">
+ <goal name="valid_process_lt" proved="true">
+ <proof prover="1"><result status="valid" time="0.013991" steps="6"/></proof>
+ </goal>
+ <goal name="count_passed_last&#39;vc" expl="VC for count_passed_last" proved="true">
+ <proof prover="1"><result status="valid" time="0.029899" steps="121"/></proof>
+ </goal>
+ <goal name="count_passed_last_pair&#39;vc" expl="VC for count_passed_last_pair" proved="true">
+ <proof prover="1"><result status="valid" time="0.070723" steps="381"/></proof>
+ </goal>
+ <goal name="count_passed_level&#39;vc" expl="VC for count_passed_level" proved="true">
+ <proof prover="1"><result status="valid" time="0.020709" steps="49"/></proof>
+ </goal>
+ <goal name="initWorld&#39;vc" expl="VC for initWorld" proved="true">
+ <proof prover="1"><result status="valid" time="0.024845" steps="72"/></proof>
+ </goal>
+ <goal name="step_Zero&#39;vc" expl="VC for step_Zero" proved="true">
+ <proof prover="1"><result status="valid" time="0.069617" steps="416"/></proof>
+ </goal>
+ <goal name="step_One&#39;vc" expl="VC for step_One" proved="true">
+ <proof prover="1"><result status="valid" time="0.071433" steps="346"/></proof>
+ </goal>
+ <goal name="step_Two&#39;vc" expl="VC for step_Two" proved="true">
+ <proof prover="1"><result status="valid" time="0.068955" steps="371"/></proof>
+ </goal>
+ <goal name="step_Three_Next&#39;vc" expl="VC for step_Three_Next" proved="true">
+ <proof prover="1"><result status="valid" time="0.084692" steps="475"/></proof>
+ </goal>
+ <goal name="step_Three_CS&#39;vc" expl="VC for step_Three_CS" proved="true">
+ <proof prover="1"><result status="valid" time="0.084488" steps="442"/></proof>
+ </goal>
+ <goal name="step_Four&#39;vc" expl="VC for step_Four" proved="true">
+ <proof prover="1"><result status="valid" time="0.065292" steps="352"/></proof>
+ </goal>
+ <goal name="step_Five&#39;vc" expl="VC for step_Five" proved="true">
+ <proof prover="1"><result status="valid" time="0.079839" steps="473"/></proof>
+ </goal>
+ <goal name="Inductiveness.initWorld&#39;refn&#39;vc" expl="VC for initWorld&#39;refn" proved="true">
+ <proof prover="1"><result status="valid" time="0.010958" steps="2"/></proof>
+ </goal>
+ <goal name="Inductiveness.step&#39;refn&#39;vc" expl="VC for step&#39;refn" proved="true">
+ <proof prover="1"><result status="valid" time="0.048598" steps="171"/></proof>
+ </goal>
+ <goal name="safety_inv_implies_atMostOneCS&#39;vc" expl="VC for safety_inv_implies_atMostOneCS" proved="true">
+ <proof prover="0"><result status="timeout" time="1.000000" steps="1612270"/></proof>
+ <proof prover="1"><result status="timeout" time="1.000000" steps="10539"/></proof>
+ <transf name="split_vc" proved="true" >
+  <goal name="safety_inv_implies_atMostOneCS&#39;vc.0" expl="assertion" proved="true">
+  <proof prover="1"><result status="valid" time="0.027867" steps="50"/></proof>
+  </goal>
+  <goal name="safety_inv_implies_atMostOneCS&#39;vc.1" expl="assertion" proved="true">
+  <proof prover="1"><result status="valid" time="0.027833" steps="48"/></proof>
+  </goal>
+  <goal name="safety_inv_implies_atMostOneCS&#39;vc.2" expl="postcondition" proved="true">
+  <proof prover="1"><result status="valid" time="0.024183" steps="24"/></proof>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="correctness">
+ <proof prover="0"><result status="timeout" time="1.000000" steps="1501799"/></proof>
+ <proof prover="1"><result status="timeout" time="1.000000" steps="7569"/></proof>
+ <transf name="split_vc" >
+  <goal name="correctness.0">
+  <proof prover="0" timelimit="5" memlimit="2000"><result status="timeout" time="5.000000" steps="6877648"/></proof>
+  <proof prover="1" timelimit="5" memlimit="2000"><result status="timeout" time="5.000000" steps="38050"/></proof>
+  <transf name="inline_goal" >
+   <goal name="correctness.0.0">
+   <transf name="split_all_full" >
+    <goal name="correctness.0.0.0">
+    <proof prover="0"><result status="timeout" time="1.000000" steps="1902772"/></proof>
+    <proof prover="1"><result status="timeout" time="1.000000" steps="8439"/></proof>
+    <transf name="split_vc" >
+     <goal name="correctness.0.0.0.0">
+     <proof prover="0" timelimit="30" memlimit="4000"><result status="timeout" time="26.839560" steps="34170992"/></proof>
+     <proof prover="1" timelimit="30" memlimit="4000"><result status="timeout" time="30.000000" steps="172890"/></proof>
+     </goal>
+    </transf>
+    </goal>
+   </transf>
+   </goal>
+  </transf>
+  </goal>
+ </transf>
+ </goal>
+ <goal name="correctness_from_safety_inv" proved="true">
+ <proof prover="1"><result status="valid" time="0.021530" steps="6"/></proof>
+ </goal>
+</theory>
+</file>
+</why3session>

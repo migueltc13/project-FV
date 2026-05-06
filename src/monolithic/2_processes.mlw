@@ -1,0 +1,183 @@
+(* vim: set tabstop=2 shiftwidth=2 softtabstop=2 expandtab: *)
+module Peterson_2_Monolithic
+
+  use export map.Map
+  use export map.Const
+
+  type state = Zero | One | Two | Three | Four | Five
+  type process = P0 | P1
+
+  function other (p:process) : process =
+    match p with
+    | P0 -> P1
+    | P1 -> P0
+    end
+
+  lemma other_involutive:
+    forall p:process. other (other p) = p
+
+  lemma other_distinct:
+    forall p:process. other p <> p
+
+  let predicate eq (p1:process) (p2:process)
+    ensures { result <-> p1 = p2 }
+  =
+    match p1 with
+    | P0 -> match p2 with | P0 -> true  | P1 -> false end
+    | P1 -> match p2 with | P0 -> false | P1 -> true  end
+    end
+
+  type world = {
+    pc   : map process state;
+    want : map process bool;
+    turn : process;
+  }
+
+  predicate atMostOneCS (w:world) =
+    forall p q:process.
+      w.pc[p] = Four /\ w.pc[q] = Four -> p = q
+
+  predicate interested (w:world) (p:process) =
+    w.pc[p] = Two   \/
+    w.pc[p] = Three \/
+    w.pc[p] = Four  \/
+    w.pc[p] = Five
+
+  predicate inv (w:world) =
+       atMostOneCS w
+
+    /\ (forall p:process.
+          interested w p -> w.want[p])
+
+    /\ (forall p:process.
+          w.pc[p] = Three /\ w.pc[other p] = Four ->
+          w.turn = other p)
+
+  predicate initWorld_p (w:world) =
+       w.pc   = const Zero
+    /\ w.want = const false
+    /\ w.turn = P0
+
+  let ghost predicate initWorld (w:world) : bool
+    ensures { result -> inv w }
+  =
+    initWorld_p w
+
+  predicate step_Zero_enbld (w:world) (p:process) =
+    w.pc[p] = Zero
+
+  let ghost function step_Zero (w:world) (p:process) : world
+    requires { step_Zero_enbld w p }
+  =
+    {
+      pc   = set w.pc p One;
+      want = w.want;
+      turn = w.turn;
+    }
+
+  predicate step_One_enbld (w:world) (p:process) =
+    w.pc[p] = One
+
+  let ghost function step_One (w:world) (p:process) : world
+    requires { step_One_enbld w p }
+  =
+    {
+      pc   = set w.pc p Two;
+      want = set w.want p true;
+      turn = w.turn;
+    }
+
+  predicate step_Two_enbld (w:world) (p:process) =
+    w.pc[p] = Two
+
+  let ghost function step_Two (w:world) (p:process) : world
+    requires { step_Two_enbld w p }
+  =
+    {
+      pc   = set w.pc p Three;
+      want = w.want;
+      turn = other p;
+    }
+
+  predicate step_Three_enbld (w:world) (p:process) =
+    w.pc[p] = Three /\
+    (not w.want[other p] \/ w.turn = p)
+
+  let ghost function step_Three (w:world) (p:process) : world
+    requires { step_Three_enbld w p }
+  =
+    {
+      pc   = set w.pc p Four;
+      want = w.want;
+      turn = w.turn;
+    }
+
+  predicate step_Four_enbld (w:world) (p:process) =
+    w.pc[p] = Four
+
+  let ghost function step_Four (w:world) (p:process) : world
+    requires { step_Four_enbld w p }
+  =
+    {
+      pc   = set w.pc p Five;
+      want = w.want;
+      turn = w.turn;
+    }
+
+  predicate step_Five_enbld (w:world) (p:process) =
+    w.pc[p] = Five
+
+  let ghost function step_Five (w:world) (p:process) : world
+    requires { step_Five_enbld w p }
+  =
+    {
+      pc   = set w.pc p Zero;
+      want = set w.want p false;
+      turn = w.turn;
+    }
+
+  inductive stepind world world =
+  | step_Zero:
+      forall w:world, p:process.
+        step_Zero_enbld w p ->
+        stepind w (step_Zero w p)
+
+  | step_One:
+      forall w:world, p:process.
+        step_One_enbld w p ->
+        stepind w (step_One w p)
+
+  | step_Two:
+      forall w:world, p:process.
+        step_Two_enbld w p ->
+        stepind w (step_Two w p)
+
+  | step_Three:
+      forall w:world, p:process.
+        step_Three_enbld w p ->
+        stepind w (step_Three w p)
+
+  | step_Four:
+      forall w:world, p:process.
+        step_Four_enbld w p ->
+        stepind w (step_Four w p)
+
+  | step_Five:
+      forall w:world, p:process.
+        step_Five_enbld w p ->
+        stepind w (step_Five w p)
+
+  let ghost predicate step (w1:world) (w2:world) : bool =
+    stepind w1 w2
+
+  clone inductiveness.Inductiveness with
+    type world,
+    predicate inv,
+    val step,
+    val initWorld
+
+  goal correctness:
+    forall w:world.
+      reachable w -> atMostOneCS w
+
+end

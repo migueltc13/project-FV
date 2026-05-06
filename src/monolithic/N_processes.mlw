@@ -1,0 +1,323 @@
+(* vim: set tabstop=2 shiftwidth=2 softtabstop=2 expandtab: *)
+module Peterson_N_Monolithic
+
+  use export int.Int
+  use export map.Map
+  use export map.Const
+
+  type state = Zero | Three | Four | Five
+
+  type process = int
+  type level = int
+
+  val constant n_processes : int
+  axiom n_processes_min : n_processes >= 2
+
+  predicate valid_process (p:process) =
+    0 <= p < n_processes
+
+  predicate valid_level (l:level) =
+    1 <= l < n_processes
+
+  lemma last_level_valid:
+    valid_level (n_processes - 1)
+
+  type world = {
+    pc     : map process state;
+    lvl    : map process level;
+    victim : map level process;
+  }
+
+  predicate active (w:world) (p:process) =
+    w.pc[p] = Three \/
+    w.pc[p] = Four \/
+    w.pc[p] = Five
+
+  predicate passed_level (w:world) (p:process) (l:level) =
+    valid_process p /\
+    valid_level l /\
+    (
+      w.lvl[p] > l \/
+      (
+        l = n_processes - 1 /\
+        w.lvl[p] = l /\
+        (w.pc[p] = Four \/ w.pc[p] = Five)
+      )
+    )
+
+  let rec ghost function count_passed_level
+      (w:world) (l:level) (n:int) : int
+    requires { valid_level l }
+    requires { 0 <= n <= n_processes }
+    ensures  { 0 <= result <= n }
+    ensures  {
+      forall p:process.
+        0 <= p < n ->
+        passed_level w p l ->
+        result >= 1
+    }
+    variant  { n }
+  =
+    if n = 0 then 0
+    else
+      let c =
+        if passed_level w (n - 1) l then 1 else 0
+      in
+      c + count_passed_level w l (n - 1)
+
+  let rec lemma count_passed_level_pair
+      (w:world) (l:level) (p q:process) (n:int)
+    requires { valid_level l }
+    requires { 0 <= n <= n_processes }
+    requires { 0 <= p < n }
+    requires { 0 <= q < n }
+    requires { passed_level w p l }
+    requires { passed_level w q l }
+    requires { count_passed_level w l n <= 1 }
+    ensures  { p = q }
+    variant  { n }
+  =
+    if n = 0 then
+      absurd
+    else if p = n - 1 then
+      if q = n - 1 then
+        ()
+      else begin
+        assert { 0 <= q < n - 1 };
+        assert { passed_level w (n - 1) l };
+        assert { count_passed_level w l n =
+                 1 + count_passed_level w l (n - 1) };
+        assert { count_passed_level w l (n - 1) >= 1 };
+        absurd
+      end
+    else if q = n - 1 then begin
+      assert { 0 <= p < n - 1 };
+      assert { passed_level w (n - 1) l };
+      assert { count_passed_level w l n =
+               1 + count_passed_level w l (n - 1) };
+      assert { count_passed_level w l (n - 1) >= 1 };
+      absurd
+    end
+    else begin
+      assert { 0 <= p < n - 1 };
+      assert { 0 <= q < n - 1 };
+      count_passed_level_pair w l p q (n - 1)
+    end
+
+  predicate filter_bound (w:world) =
+    forall l:level.
+      valid_level l ->
+      count_passed_level w l n_processes <= n_processes - l
+
+  predicate atMostOneCS (w:world) =
+    forall p q:process.
+      valid_process p ->
+      valid_process q ->
+      w.pc[p] = Four ->
+      w.pc[q] = Four ->
+      p = q
+
+  predicate waiting_guard (w:world) (p:process) =
+    forall q:process.
+      valid_process q ->
+      q <> p ->
+      w.lvl[q] < w.lvl[p] \/ w.victim[w.lvl[p]] <> p
+
+  predicate inv (w:world) =
+       filter_bound w
+
+    /\ (forall p:process.
+          valid_process p ->
+          w.pc[p] = Zero ->
+          w.lvl[p] = 0)
+
+    /\ (forall p:process.
+          valid_process p ->
+          w.pc[p] = Three ->
+          valid_level w.lvl[p])
+
+    /\ (forall p:process.
+          valid_process p ->
+          w.pc[p] = Four ->
+          w.lvl[p] = n_processes - 1)
+
+    /\ (forall p:process.
+          valid_process p ->
+          w.pc[p] = Five ->
+          w.lvl[p] = n_processes - 1)
+
+  let ghost function enter_first_level (w:world) (p:process) : world =
+    {
+      pc     = set w.pc p Three;
+      lvl    = set w.lvl p 1;
+      victim = set w.victim 1 p;
+    }
+
+  let ghost function enter_next_level (w:world) (p:process) : world =
+    {
+      pc     = w.pc;
+      lvl    = set w.lvl p (w.lvl[p] + 1);
+      victim = set w.victim (w.lvl[p] + 1) p;
+    }
+
+  let ghost function enter_cs (w:world) (p:process) : world =
+    {
+      pc     = set w.pc p Four;
+      lvl    = w.lvl;
+      victim = w.victim;
+    }
+
+  let ghost function leave_cs (w:world) (p:process) : world =
+    {
+      pc     = set w.pc p Five;
+      lvl    = w.lvl;
+      victim = w.victim;
+    }
+
+  let ghost function reset_process (w:world) (p:process) : world =
+    {
+      pc     = set w.pc p Zero;
+      lvl    = set w.lvl p 0;
+      victim = w.victim;
+    }
+
+  predicate initWorld_p (w:world) =
+       w.pc = const Zero
+    /\ w.lvl = const 0
+    /\ inv w
+
+  let ghost predicate initWorld (w:world) : bool
+    ensures { result -> inv w }
+  =
+    initWorld_p w
+
+  predicate step_Zero_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = Zero
+    /\ inv (enter_first_level w p)
+
+  let ghost function step_Zero (w:world) (p:process) : world
+    requires { step_Zero_enbld w p }
+  =
+    enter_first_level w p
+
+  predicate step_Three_Next_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = Three
+    /\ valid_level w.lvl[p]
+    /\ w.lvl[p] < n_processes - 1
+    /\ waiting_guard w p
+    /\ inv (enter_next_level w p)
+
+  let ghost function step_Three_Next (w:world) (p:process) : world
+    requires { step_Three_Next_enbld w p }
+  =
+    enter_next_level w p
+
+  predicate step_Three_CS_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = Three
+    /\ w.lvl[p] = n_processes - 1
+    /\ waiting_guard w p
+    /\ inv (enter_cs w p)
+
+  let ghost function step_Three_CS (w:world) (p:process) : world
+    requires { step_Three_CS_enbld w p }
+  =
+    enter_cs w p
+
+  predicate step_Four_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = Four
+    /\ inv (leave_cs w p)
+
+  let ghost function step_Four (w:world) (p:process) : world
+    requires { step_Four_enbld w p }
+  =
+    leave_cs w p
+
+  predicate step_Five_enbld (w:world) (p:process) =
+       valid_process p
+    /\ w.pc[p] = Five
+    /\ inv (reset_process w p)
+
+  let ghost function step_Five (w:world) (p:process) : world
+    requires { step_Five_enbld w p }
+  =
+    reset_process w p
+
+  inductive stepind world world =
+  | step_Zero:
+      forall w:world, p:process.
+        step_Zero_enbld w p ->
+        stepind w (step_Zero w p)
+
+  | step_Three_Next:
+      forall w:world, p:process.
+        step_Three_Next_enbld w p ->
+        stepind w (step_Three_Next w p)
+
+  | step_Three_CS:
+      forall w:world, p:process.
+        step_Three_CS_enbld w p ->
+        stepind w (step_Three_CS w p)
+
+  | step_Four:
+      forall w:world, p:process.
+        step_Four_enbld w p ->
+        stepind w (step_Four w p)
+
+  | step_Five:
+      forall w:world, p:process.
+        step_Five_enbld w p ->
+        stepind w (step_Five w p)
+
+  let ghost predicate step (w1:world) (w2:world) : bool =
+    stepind w1 w2
+
+  clone inductiveness.Inductiveness with
+    type world,
+    predicate inv,
+    val step,
+    val initWorld
+
+  let lemma two_cs_impossible
+      (w:world) (p q:process)
+    requires { inv w }
+    requires { valid_process p }
+    requires { valid_process q }
+    requires { w.pc[p] = Four }
+    requires { w.pc[q] = Four }
+    ensures  { p = q }
+  =
+    assert { w.lvl[p] = n_processes - 1 };
+    assert { w.lvl[q] = n_processes - 1 };
+
+    assert { passed_level w p (n_processes - 1) };
+    assert { passed_level w q (n_processes - 1) };
+
+    assert {
+      count_passed_level w (n_processes - 1) n_processes <= 1
+    };
+
+    count_passed_level_pair w (n_processes - 1) p q n_processes
+
+  let lemma inv_implies_atMostOneCS (w:world)
+    requires { inv w }
+    ensures  { atMostOneCS w }
+  =
+    assert {
+      forall p q:process.
+        valid_process p ->
+        valid_process q ->
+        w.pc[p] = Four ->
+        w.pc[q] = Four ->
+        p = q
+    };
+    ()
+
+  goal correctness:
+    forall w:world.
+      reachable w -> atMostOneCS w
+
+end
